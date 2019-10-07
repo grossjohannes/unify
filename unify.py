@@ -196,7 +196,7 @@ def _main(argv, standard_out, standard_error):
 
     if not args.std_in and len(args.files) == 0:
         parser.print_help()
-    if args.std_in and len(args.files) == 0:
+    if args.std_in and len(args.files) != 0:
         parser.print_help()
 
     if args.std_in:

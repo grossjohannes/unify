@@ -21,11 +21,9 @@
 # ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-
 """Modifies strings to all use the same quote where possible."""
 
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 import io
 import os
@@ -35,9 +33,7 @@ import tokenize
 
 import untokenize
 
-
 __version__ = '0.5'
-
 
 try:
     unicode
@@ -61,26 +57,21 @@ def _format_code(source, preferred_quote):
     modified_tokens = []
 
     sio = io.StringIO(source)
-    for (token_type,
-         token_string,
-         start,
-         end,
+    for (token_type, token_string, start, end,
          line) in tokenize.generate_tokens(sio.readline):
 
         if token_type == tokenize.STRING:
             token_string = unify_quotes(token_string,
                                         preferred_quote=preferred_quote)
 
-        modified_tokens.append(
-            (token_type, token_string, start, end, line))
+        modified_tokens.append((token_type, token_string, start, end, line))
 
     return untokenize.untokenize(modified_tokens)
 
 
 def unify_quotes(token_string, preferred_quote):
     """Return string with quotes changed to preferred_quote if possible."""
-    bad_quote = {'"': "'",
-                 "'": '"'}[preferred_quote]
+    bad_quote = {'"': "'", "'": '"'}[preferred_quote]
 
     allowed_starts = {
         '': bad_quote,
@@ -90,8 +81,9 @@ def unify_quotes(token_string, preferred_quote):
         'b': 'b' + bad_quote
     }
 
-    if not any(token_string.startswith(start)
-               for start in allowed_starts.values()):
+    if not any(
+            token_string.startswith(start)
+            for start in allowed_starts.values()):
         return token_string
 
     if token_string.count(bad_quote) != 2:
@@ -108,8 +100,7 @@ def unify_quotes(token_string, preferred_quote):
             return '{prefix}{preferred_quote}{token}{preferred_quote}'.format(
                 prefix=prefix,
                 preferred_quote=preferred_quote,
-                token=token_string[chars_to_strip_from_front:-1]
-            )
+                token=token_string[chars_to_strip_from_front:-1])
 
 
 def open_with_encoding(filename, encoding, mode='r'):
@@ -144,9 +135,7 @@ def format_file(filename, args, standard_out):
     encoding = detect_encoding(filename)
     with open_with_encoding(filename, encoding=encoding) as input_file:
         source = input_file.read()
-        formatted_source = format_code(
-            source,
-            preferred_quote=args.quote)
+        formatted_source = format_code(source, preferred_quote=args.quote)
 
     if source != formatted_source:
         if args.in_place:
@@ -155,12 +144,11 @@ def format_file(filename, args, standard_out):
                 output_file.write(formatted_source)
         else:
             import difflib
-            diff = difflib.unified_diff(
-                source.splitlines(),
-                formatted_source.splitlines(),
-                'before/' + filename,
-                'after/' + filename,
-                lineterm='')
+            diff = difflib.unified_diff(source.splitlines(),
+                                        formatted_source.splitlines(),
+                                        'before/' + filename,
+                                        'after/' + filename,
+                                        lineterm='')
             standard_out.write('\n'.join(list(diff) + ['']))
 
             return True
@@ -177,41 +165,67 @@ def _main(argv, standard_out, standard_error):
     """
     import argparse
     parser = argparse.ArgumentParser(description=__doc__, prog='unify')
-    parser.add_argument('-i', '--in-place', action='store_true',
+    parser.add_argument('-i',
+                        '--in-place',
+                        action='store_true',
                         help='make changes to files instead of printing diffs')
-    parser.add_argument('-c', '--check-only', action='store_true',
+    parser.add_argument(
+        '-s',
+        '--std-in',
+        action='store_true',
+        help='Read from stdin and write to stdout instead of printing diffs')
+    parser.add_argument('-c',
+                        '--check-only',
+                        action='store_true',
                         help='exit with a status code of 1 if any changes are'
-                             ' still needed')
-    parser.add_argument('-r', '--recursive', action='store_true',
+                        ' still needed')
+    parser.add_argument('-r',
+                        '--recursive',
+                        action='store_true',
                         help='drill down directories recursively')
-    parser.add_argument('--quote', help='preferred quote', choices=["'", '"'],
+    parser.add_argument('--quote',
+                        help='preferred quote',
+                        choices=["'", '"'],
                         default="'")
-    parser.add_argument('--version', action='version',
+    parser.add_argument('--version',
+                        action='version',
                         version='%(prog)s ' + __version__)
-    parser.add_argument('files', nargs='+',
-                        help='files to format')
+    parser.add_argument('files', nargs='*', help='files to format')
 
     args = parser.parse_args(argv[1:])
 
-    filenames = list(set(args.files))
-    changes_needed = False
-    failure = False
-    while filenames:
-        name = filenames.pop(0)
-        if args.recursive and os.path.isdir(name):
-            for root, directories, children in os.walk(unicode(name)):
-                filenames += [os.path.join(root, f) for f in children
-                              if f.endswith('.py') and
-                              not f.startswith('.')]
-                directories[:] = [d for d in directories
-                                  if not d.startswith('.')]
-        else:
-            try:
-                if format_file(name, args=args, standard_out=standard_out):
-                    changes_needed = True
-            except IOError as exception:
-                print(unicode(exception), file=standard_error)
-                failure = True
+    if not args.std_in and len(args.files) == 0:
+        parser.print_help()
+    if args.std_in and len(args.files) == 0:
+        parser.print_help()
+
+    if args.std_in:
+        failure = False
+        formatted_source = format_code(''.join(sys.stdin.readlines()),
+                                       preferred_quote=args.quote)
+        print(formatted_source)
+    else:
+        filenames = list(set(args.files))
+        changes_needed = False
+        failure = False
+        while filenames:
+            name = filenames.pop(0)
+            if args.recursive and os.path.isdir(name):
+                for root, directories, children in os.walk(unicode(name)):
+                    filenames += [
+                        os.path.join(root, f) for f in children
+                        if f.endswith('.py') and not f.startswith('.')
+                    ]
+                    directories[:] = [
+                        d for d in directories if not d.startswith('.')
+                    ]
+            else:
+                try:
+                    if format_file(name, args=args, standard_out=standard_out):
+                        changes_needed = True
+                except IOError as exception:
+                    print(unicode(exception), file=standard_error)
+                    failure = True
 
     if failure or (args.check_only and changes_needed):
         return 1
